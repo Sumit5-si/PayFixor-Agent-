@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PayFixor Agent — Autonomous Revenue Recovery</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Noto Sans Devanagari', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            surface: {
+              base: '#0C0D12',
+              sidebar: '#111319',
+              card: '#151821',
+              cardHover: '#1C202C',
+              border: '#232735',
+              subtle: '#181B24',
+              highlight: '#343B4E',
+            },
+            accent: {
+              cyan: '#06B6D4',
+              indigo: '#6366F1',
+              purple: '#8B5CF6',
+              emerald: '#10B981',
+              amber: '#F59E0B',
+              rose: '#F43F5E',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+
+<body class="bg-surface-base text-slate-100 font-sans antialiased selection:bg-cyan-500 selection:text-white min-h-screen">
+  <div id="root"></div>
+
+  <script src="/static/js/i18n.js"></script>
+  <script src="/static/js/api.js"></script>
+
+  <script type="text/babel" src="/static/js/dashboard.js"></script>
+</body>
+
+</html>

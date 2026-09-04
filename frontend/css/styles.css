@@ -1,0 +1,201 @@
+/* PayFixor Dark Fintech & Kanban Operations Theme */
+/* Inspired by modern dark Kanban & analytics boards */
+
+:root {
+  --surface-bg: #0C0D12;
+  --surface-sidebar: #111319;
+  --surface-card: #151821;
+  --surface-card-hover: #1C202C;
+  --surface-subtle: #12141C;
+  --border-color: #232735;
+  --border-subtle: #1B1E29;
+  --border-highlight: #343B4E;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --brand-primary: #6366F1;
+  --brand-cyan: #06B6D4;
+  --brand-blue: #3B82F6;
+  --success-emerald: #10B981;
+  --warning-amber: #F59E0B;
+  --danger-rose: #F43F5E;
+}
+
+body {
+  background-color: var(--surface-bg);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.03) 0%, transparent 40%);
+  background-attachment: fixed;
+}
+
+/* Custom Minimal Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0E1017;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252A38;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3B4256;
+}
+
+/* Dark Card Styling (Modern Dark Elevation) */
+.fintech-card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35), 0 2px 6px -1px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fintech-card-hover:hover {
+  background-color: var(--surface-card-hover);
+  border-color: var(--border-highlight);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.45), 0 4px 10px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* Kanban Column Container */
+.kanban-column {
+  background-color: rgba(17, 19, 25, 0.75);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(12px);
+}
+
+/* Kanban Card */
+.kanban-card {
+  background-color: #171A23;
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+}
+
+.kanban-card:hover {
+  background-color: #1D212D;
+  border-color: #384157;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Tabular numbers for financial amounts */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Crisp Clean Dark Table Styles */
+.fintech-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.fintech-table th {
+  background-color: #12141B;
+  color: #94A3B8;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.fintech-table td {
+  padding: 0.95rem 1.25rem;
+  border-bottom: 1px solid #1A1D27;
+  color: #E2E8F0;
+  font-size: 0.8125rem;
+  vertical-align: middle;
+}
+
+.fintech-table tr:last-child td {
+  border-bottom: none;
+}
+
+.fintech-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.fintech-table tbody tr:hover td {
+  background-color: rgba(28, 32, 44, 0.6);
+}
+
+/* Pulse indicator for live incidents */
+@keyframes status-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+}
+
+.animate-pulse-dot {
+  animation: status-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Glowing Progress Bar */
+.progress-bar-cyan {
+  background: linear-gradient(90deg, #06B6D4 0%, #3B82F6 100%);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.35);
+}
+
+.progress-bar-indigo {
+  background: linear-gradient(90deg, #6366F1 0%, #8B5CF6 100%);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.35);
+}
+
+.progress-bar-emerald {
+  background: linear-gradient(90deg, #10B981 0%, #059669 100%);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+/* Shimmer effect for active recovery */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.bg-shimmer {
+  background: linear-gradient(90deg, #4f46e5 0%, #818cf8 50%, #4f46e5 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s infinite;
+}
+
+/* Modal Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
