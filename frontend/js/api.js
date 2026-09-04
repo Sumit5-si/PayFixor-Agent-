@@ -1,6 +1,9 @@
-const BASE_URL = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1')
-  ? `${window.location.origin}/api`
-  : 'http://localhost:8000/api';
+
+const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8000'
+  : 'https://payfixor-agent-backend.onrender.com';
+const BASE_URL = `${BACKEND_URL}/api`;
+
 
 window.PayFixorAPI = {
   async getOverviewKPIs() {
