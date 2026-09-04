@@ -6,6 +6,22 @@ const BASE_URL = `${BACKEND_URL}/api`;
 
 
 window.PayFixorAPI = {
+  BASE_URL,
+  BACKEND_URL,
+
+  async testWebhook(payload) {
+    const res = await fetch(`${BASE_URL}/webhooks/razorpay`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Razorpay-Signature': 'mock_sig'
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    return { ok: res.ok, data };
+  },
+
   async getOverviewKPIs() {
     const res = await fetch(`${BASE_URL}/analytics/overview`);
     if (!res.ok) throw new Error('Failed to fetch overview KPIs');

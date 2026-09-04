@@ -2960,7 +2960,8 @@ window.IntegrationStatusPage = function IntegrationStatusPage({ lang }) {
         }
       };
 
-      const res = await fetch('/api/webhooks/razorpay', {
+      const baseUrl = window.PayFixorAPI?.BASE_URL || '/api';
+      const res = await fetch(`${baseUrl}/webhooks/razorpay`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
