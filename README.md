@@ -30,11 +30,21 @@ This repository is **two things working together:**
 
 | Part | What It Is |
 |---|---|
-| 🛍️ **GharSansar** | A real, production-ready Indian artisan e-commerce store (Next.js 15 + Razorpay) |
+| 🛍️ **GharSansar** | (See my GharSansar Repo for testing both things simultaneously) A real, production-ready Indian artisan e-commerce store (Next.js 15 + Razorpay) |
 | 🤖 **PayFixor Agent** | An AI agent that monitors GharSansar's payment failures and autonomously recovers lost revenue |
 
 **The full story in one line:**  
 When a customer's payment fails on GharSansar, PayFixor Agent detects it, uses Gemini AI to figure out *why*, and sends the customer a Razorpay Payment Link — automatically, without any human involvement.
+
+---
+
+## 📖 About This Project?
+
+Problem:- When someone tries to pay on online store and the payment fails through UPI, card or netbanking the merchant usually has no idea it happened. customer just leaves. That money is lost forever.
+
+Solution:- My PayFixor fixes this. It watches payment data in real time, automatically spots when something is going wrong (like too many UPI failures from one bank or something else) figures out why it's happening  and then sends automatically the affected customers a Razorpay payment link with previous payment failure reason ( that build trust and user chances of purchasing again increases) so they can complete their purchase. It also runs a small experiment to prove that this recovery actually worked and how much money was saved.
+
+In short :- it turns a silent revenue loss into a recovered sale, without any human doing anything (untill payment below merchant desired amount).
 
 ---
 
