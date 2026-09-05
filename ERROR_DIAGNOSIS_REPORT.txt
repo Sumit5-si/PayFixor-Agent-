@@ -1,0 +1,381 @@
+================================================================================
+  PAYFIXOR AGENT DASHBOARD — ERROR DIAGNOSIS REPORT
+  Date: 2026-09-05
+  Problem: Dashboard shows all zeros/empty despite Google Sheet receiving data
+================================================================================
+
+SUMMARY (HINDI):
+Tumhara GharSansar website se jab payment cancel hoti hai to data Google Spreadsheet
+me ja rha hai (ye sahi kaam kr rha hai), BUT PayFixor Agent Dashboard me kuchh nhi
+dikh rha hai. Iska reason ye hai ki Google Spreadsheet aur PayFixor Agent Dashboard
+ke beech me KOI CONNECTION HI NAHI HAI. Dono alag-alag kaam kr rhe hain.
+
+================================================================================
+                         ROOT CAUSE ANALYSIS
+================================================================================
+
+Tumhare system me 3 cheezein hain:
+  1. GharSansar Website (E-commerce) → Razorpay Payment Gateway
+  2. Google Spreadsheet (Google Apps Script / Razorpay webhook → Sheet)
+  3. PayFixor Agent Dashboard (Backend + Frontend)
+
+PROBLEM: #2 aur #3 ke beech KOI BRIDGE/CONNECTION NAHI HAI.
+
+Jab tum payment cancel karte ho:
+  - Razorpay "payment.failed" webhook bhejta hai
+  - Tumhara Google Apps Script us webhook ko catch karke Google Sheet me data daal deta hai ✅
+  - BUT PayFixor backend ko ye webhook kabhi MILTA HI NAHI ❌
+
+================================================================================
+                    DETAILED ERRORS FOUND (7 ERRORS)
+================================================================================
+
+───────────────────────────────────────────────────────────────────────────────
+ERROR #1: GOOGLE SHEET ↔ PAYFIXOR BACKEND — NO DATA BRIDGE EXISTS
+Severity: ★★★★★ CRITICAL (YE SABSE BADA PROBLEM HAI)
+File: backend/app/integrations/ (EMPTY FOLDER!)
+───────────────────────────────────────────────────────────────────────────────
+
+PROBLEM:
+- backend/app/integrations/ folder hai but KHALI hai — koi code hi nhi hai.
+- PayFixor backend me Google Sheets se data read karne ka koi code EXIST NAHI karta.
+- .env me GOOGLE_SHEET_ID aur GOOGLE_SERVICE_ACCOUNT_EMAIL defined hain but
+  koi bhi Python file inhe use nhi karti.
+- config.py me bhi ye settings nhi padhi jaa rhi hain.
+
+KYA HONA CHAHIYE:
+- Ya to Google Sheet se data ko PayFixor database me sync karna padega
+- Ya to Razorpay webhook ko DONO jagah point karna padega (Sheet + PayFixor)
+
+RESOLUTION:
+Option A: Razorpay Dashboard me ek AUR webhook URL add karo jo PayFixor ko point kare:
+  - Razorpay Dashboard → Settings → Webhooks → Add New Webhook
+  - URL: https://YOUR_PAYFIXOR_BACKEND_URL/api/webhooks/razorpay
+  - Events: payment.failed, payment.captured, payment.authorized, order.paid
+  
+Option B: Google Sheet se data ko PayFixor me push karne ke liye ek integration script likho:
+  - backend/app/integrations/ me ek google_sheets.py banao
+  - Google Sheets API use karke data read karo
+  - Read data ko PayFixor database me insert karo
+
+RECOMMENDED: Option A (sabse simple aur real-time)
+
+───────────────────────────────────────────────────────────────────────────────
+ERROR #2: RAZORPAY WEBHOOK ENDPOINT REAL WEBHOOK RECEIVE NAHI KAR RAHA
+Severity: ★★★★★ CRITICAL
+File: backend/app/razorpay/client.py (Line 116-118)
+───────────────────────────────────────────────────────────────────────────────
+
+PROBLEM:
+PayFixor ka webhook endpoint (/api/webhooks/razorpay) exist karta hai, but REAL
+Razorpay webhook kabhi aata hi nahi kyunki:
+
+1. .env me RAZORPAY_KEY_ID = "rzp_test_your_key_id" (PLACEHOLDER value!)
+2. .env me RAZORPAY_KEY_SECRET = "your_razorpay_key_secret" (PLACEHOLDER value!)
+3. .env me RAZORPAY_WEBHOOK_SECRET = "your_webhook_secret_here" (PLACEHOLDER value!)
+
+client.py line 21-25:
+  self.is_mock = (
+      not self.key_id or
+      self.key_id.startswith("rzp_test_mock") or
+      self.key_secret == "mock_secret"
+  )
+  
+Yahan "rzp_test_your_key_id" ko check karo:
+  - startswith("rzp_test_mock") → False (kyunki "rzp_test_your_key_id" hai, "rzp_test_mock" nhi)
+  - So is_mock = False, matlab REAL Razorpay client create hoga
+  - BUT real key_id aur key_secret FAKE placeholder hain
+  - To koi bhi Razorpay API call FAIL hogi
+
+ALAG SE, signature verification (line 116-118):
+  if not signature or not webhook_sec:
+      return self.is_mock
+      
+  - is_mock = False (kyunki placeholder key "rzp_test_" se start nhi hota as mock)
+  - To agar signature khali aaye ya webhook_secret placeholder ho, to return False
+  - Matlab real Razorpay webhook aaye bhi to SIGNATURE VERIFICATION FAIL HOGI
+
+RESOLUTION:
+- .env me APNA REAL Razorpay Test Key ID dalo (jo tumne Razorpay Dashboard se liya)
+  Example: RAZORPAY_KEY_ID="rzp_test_ABC123XYZ"
+- .env me APNA REAL Razorpay Test Key Secret dalo
+  Example: RAZORPAY_KEY_SECRET="abc123secretxyz"
+- .env me APNA Webhook Secret dalo (Razorpay Dashboard → Webhooks → Secret)
+  Example: RAZORPAY_WEBHOOK_SECRET="whsec_abc123"
+
+───────────────────────────────────────────────────────────────────────────────
+ERROR #3: hmac.new() — SILENT FAILURE IN SIGNATURE VERIFICATION
+Severity: ★★★★☆ HIGH
+File: backend/app/razorpay/client.py (Line 123-131)
+───────────────────────────────────────────────────────────────────────────────
+
+PROBLEM:
+Line 123-131 me signature verification try/except block me hai:
+  try:
+      expected_signature = hmac.new(...)
+      return hmac.compare_digest(expected_signature, signature)
+  except Exception:
+      return False
+
+Agar koi bhi error aaye (wrong secret, encoding issue, etc.) to ye SILENTLY
+return False kar deta hai. Tumhe koi error message ya log NAHI milega.
+Matlab webhook aaye bhi to signature fail ho aur tumhe pata bhi na chale.
+
+RESOLUTION:
+- Backend logs check karo (terminal/console me) jab webhook aaye tab
+- Debugging ke liye except block me print/logging add karo:
+    except Exception as e:
+        print(f"HMAC Verification Error: {e}")
+        return False
+
+───────────────────────────────────────────────────────────────────────────────
+ERROR #4: WEBHOOK URL RAZORPAY ME CONFIGURED HI NAHI HAI
+Severity: ★★★★★ CRITICAL
+File: N/A — Razorpay Dashboard Configuration
+───────────────────────────────────────────────────────────────────────────────
+
+PROBLEM:
+Tumne apne Razorpay Dashboard me sirf Google Spreadsheet wala webhook URL
+configure kiya hoga. PayFixor backend ka webhook URL configure hi nhi kiya.
+
+ISLIYE:
+- Payment cancel → Razorpay sends webhook → Goes ONLY to Google Sheet script
+- PayFixor ko koi notification milti hi nahi
+- PayFixor database KHALI rehta hai
+- Dashboard ZEROS dikhata hai
+
+RESOLUTION:
+Razorpay Dashboard → Settings → Webhooks me:
+1. Ek naya webhook ADD karo:
+   - Webhook URL: https://YOUR_DEPLOYED_BACKEND/api/webhooks/razorpay
+     (agar local: http://localhost:8000/api/webhooks/razorpay)
+     (agar Render pe: https://payfixor-agent-backend.onrender.com/api/webhooks/razorpay)
+   - Secret: ek naya secret set karo aur same .env me RAZORPAY_WEBHOOK_SECRET me dalo
+   - Active Events: payment.failed, payment.captured, payment.authorized, order.paid
+2. Save karo
+
+NOTE: Local testing ke liye Razorpay se webhook aane ke liye tumhe ek tunnel
+chahiye (ngrok / cloudflare tunnel) kyunki Razorpay localhost pe webhook nhi bhej
+sakta. Command: npx ngrok http 8000
+
+───────────────────────────────────────────────────────────────────────────────
+ERROR #5: WEBHOOK SE PAYMENT DATA DATABASE ME SAVE NAHI HO RAHA
+Severity: ★★★★☆ HIGH
+File: backend/app/razorpay/webhooks.py (Lines 112-124)
+───────────────────────────────────────────────────────────────────────────────
+
+PROBLEM:
+_handle_payment_failed() method me (line 112-124):
+  1. Ye existing Payment record dhundta hai database me: select(Payment).where(Payment.payment_id == payment_id)
+  2. Agar payment pehle se database me NAHI hai to kuchh bhi nhi karta — bas {"status": "failure_recorded"} return karta hai
+  3. Koi NEW Payment record CREATE NAHI karta
+
+Matlab agar Razorpay se "payment.failed" webhook aaye aur us payment_id ka record
+pehle se database me na ho (jo hoga NAHI kyunki tum pehli baar payment kr rhe ho),
+to webhook data simply IGNORE ho jayega.
+
+Same problem _handle_payment_success() (line 100-110) me bhi hai.
+
+KYA HONA CHAHIYE:
+Webhook handler ko chahiye ki agar payment exist nahi karti to EK NAYA Payment record
+create kare database me. Currently wo sirf existing records UPDATE karta hai.
+
+RESOLUTION:
+_handle_payment_failed() aur _handle_payment_success() methods me logic add karna
+padega jo:
+1. Pehle check kare ki payment exist karti hai ya nhi
+2. Agar nahi hai to NAYA Payment record create kare (Razorpay webhook payload se
+   data extract karke — amount, method, status, error_code etc.)
+3. Sath me corresponding Customer record bhi create karna padega agar nahi hai
+4. Agar payment exist karti hai to update kare (ye currently ho rha hai)
+
+───────────────────────────────────────────────────────────────────────────────
+ERROR #6: ANOMALY DETECTION MIN_SAMPLE_SIZE = 100 (BAHUT ZYADA)
+Severity: ★★★☆☆ MEDIUM
+File: backend/.env (Line 20) and backend/app/utils/config.py (Line 27)
+───────────────────────────────────────────────────────────────────────────────
+
+PROBLEM:
+.env me MIN_SAMPLE_SIZE=100 set hai. Matlab jab tak 100 transactions database me
+nhi honge, anomaly detection koi incident DETECT HI NAHI KAREGA.
+
+Tumhare Google Sheet me sirf 4 rows hain (2-3 failed payments). To 100 sample size
+ke saath anomaly detection trigger hi nahi hoga.
+
+config.py default bhi 50 hai jo ki testing phase ke liye bahut zyada hai.
+
+RESOLUTION:
+Testing ke liye .env me ye change karo:
+  MIN_SAMPLE_SIZE=5
+
+Baad me production me ise wapas 50 ya 100 kar sakte ho.
+
+───────────────────────────────────────────────────────────────────────────────
+ERROR #7: DASHBOARD DATA SIRF DATABASE SE AATA HAI, GOOGLE SHEET SE NAHI
+Severity: ★★★★☆ HIGH (DESIGN ISSUE)
+File: frontend/js/api.js and backend/app/services/analytics_service.py
+───────────────────────────────────────────────────────────────────────────────
+
+PROBLEM:
+Dashboard ka poora data flow:
+  Frontend (api.js) → calls → Backend API (/api/analytics/overview, /api/incidents/)
+  Backend API → queries → SQLite Database (payfixor.db)
+  
+Dashboard KABHI BHI Google Sheet se data nhi padhta. Sab data SQLite database se
+aata hai. Aur jaise upar bataya — us database me koi data hai hi nahi kyunki
+webhooks PayFixor ko ja hi nahi rhe.
+
+Spreadsheet ka data completely ISOLATED hai PayFixor system se.
+
+
+================================================================================
+                    STEP-BY-STEP FIX GUIDE (KAISE SOLVE KARE)
+================================================================================
+
+STEP 1: Razorpay Credentials (.env update karo)
+─────────────────────────────────────────────
+backend/.env me ye PLACEHOLDER values ko APNE REAL values se replace karo:
+
+  RAZORPAY_KEY_ID="rzp_test_TUMHARA_REAL_KEY"
+  RAZORPAY_KEY_SECRET="TUMHARA_REAL_SECRET"
+  RAZORPAY_WEBHOOK_SECRET="TUMHARA_WEBHOOK_SECRET"
+
+Ye values Razorpay Dashboard → Settings → API Keys se milenge.
+
+STEP 2: Razorpay me PayFixor Webhook URL Add karo
+─────────────────────────────────────────────────
+Razorpay Dashboard → Settings → Webhooks:
+  - "Add New Webhook" pe click karo
+  - URL: https://YOUR_BACKEND_URL/api/webhooks/razorpay
+  - Secret: ek strong secret set karo (aur same .env me dalo)
+  - Events select karo: payment.failed, payment.captured, order.paid
+  - Save karo
+
+Important: Agar backend localhost pe chal rha hai to pehle tunnel banao:
+  npx ngrok http 8000
+  Phir ngrok URL use karo (e.g., https://abc123.ngrok.io/api/webhooks/razorpay)
+
+STEP 3: Webhook Handler me Payment Creation Logic Fix karo
+─────────────────────────────────────────────────────────
+File: backend/app/razorpay/webhooks.py
+
+_handle_payment_failed() method me logic add karo:
+  - Agar payment_id se payment nahi milti to NAYA Payment record create karo
+  - Customer bhi create karo agar exist nhi karta
+  - Razorpay webhook payload se amount, method, bank, error_code extract karo
+
+Same fix _handle_payment_success() me bhi karo.
+
+STEP 4: MIN_SAMPLE_SIZE Kam Karo (Testing ke liye)
+─────────────────────────────────────────────────
+backend/.env:
+  MIN_SAMPLE_SIZE=5
+
+STEP 5: Backend Server Restart karo
+─────────────────────────────────────
+  cd backend
+  python -m backend.app.main
+
+STEP 6: Test karo
+─────────────────
+  1. GharSansar website pe ek payment karo aur cancel karo
+  2. Check karo ki backend terminal me webhook received log aaye
+  3. Dashboard refresh karo (ya "Scan Anomaly" button click karo)
+  4. Ab data dikhna chahiye
+
+STEP 7 (OPTIONAL): Google Sheet se Existing Data Import karo
+─────────────────────────────────────────────────────────────
+Agar tum chahte ho ki Google Sheet me jo pehle se 4 records hain wo bhi
+dashboard me dikhe, to:
+  - backend/app/integrations/ me ek script likho jo Google Sheets API se
+    data read kare aur /api/payments/ingest endpoint pe POST kare
+  - Ya phir manually un 4 records ko POST /api/payments/ingest endpoint
+    pe cURL/Postman se bhejo
+
+
+================================================================================
+                          FLOW DIAGRAM — CURRENT vs FIXED
+================================================================================
+
+CURRENT (BROKEN) FLOW:
+  Payment Cancel → Razorpay Webhook → Google Sheet ✅ (data aaya)
+                                    → PayFixor Backend ❌ (webhook configured hi nahi)
+  PayFixor Dashboard → Backend API → SQLite DB → EMPTY → Dashboard shows ₹0 ❌
+
+FIXED FLOW (after above fixes):
+  Payment Cancel → Razorpay Webhook → Google Sheet ✅ (data aata rahega)
+                                    → PayFixor Backend ✅ (naya webhook URL add karke)
+                                        → Creates Payment in DB ✅
+                                        → Creates Customer in DB ✅
+  User clicks "Scan Anomaly" → Anomaly Detection → Creates Incident ✅
+  PayFixor Dashboard → Backend API → SQLite DB → DATA EXISTS → Dashboard shows ₹699 ✅
+
+
+================================================================================
+                         QUICK TESTING (BINA REAL PAYMENT KE)
+================================================================================
+
+Agar tum bina real payment ke test karna chahte ho:
+
+1. Dashboard me "Simulate Degradation" button click karo
+   - Ye 500 synthetic transactions create karega
+   - Anomaly detect karega
+   - Recovery trigger karega
+   - Dashboard me data dikhega
+
+2. Ya phir "Scan Anomaly" button click karo (existing data se anomaly dhundega)
+
+3. Ya Postman/cURL se mock webhook bhejo:
+   
+   curl -X POST http://localhost:8000/api/webhooks/razorpay \
+     -H "Content-Type: application/json" \
+     -H "X-Razorpay-Signature: mock_sig" \
+     -d '{
+       "id": "evt_test123",
+       "event": "payment.failed",
+       "payload": {
+         "payment": {
+           "entity": {
+             "id": "pay_test123",
+             "amount": 69900,
+             "currency": "INR",
+             "status": "failed",
+             "method": "upi",
+             "bank": "Bank_X",
+             "error_code": "BAD_REQUEST_ERROR",
+             "error_description": "Payment cancelled by user"
+           }
+         }
+       }
+     }'
+
+NOTE: Mock webhook se bhi data nhi jayega kyunki _handle_payment_failed() naya
+payment CREATE nhi karta (Error #5). Pehle wo fix karna padega.
+
+
+================================================================================
+                              FILES AFFECTED
+================================================================================
+
+1. backend/.env                          → Razorpay credentials update needed
+2. backend/app/razorpay/client.py        → hmac.new bug, mock mode logic
+3. backend/app/razorpay/webhooks.py      → Payment creation logic missing
+4. backend/app/integrations/             → Empty, no Google Sheet integration
+5. backend/app/utils/config.py           → GOOGLE_SHEET settings not read
+6. Razorpay Dashboard                    → PayFixor webhook URL not configured
+
+================================================================================
+                              CONCLUSION
+================================================================================
+
+Main problem SIMPLE hai: Google Sheet aur PayFixor Dashboard ke beech KOI CONNECTION
+NAHI HAI. Dono apne-apne alag data sources se kaam kar rahe hain.
+
+Google Sheet ko Razorpay webhook directly feed kar rha hai ✅
+PayFixor Dashboard ko koi bhi data feed nhi kar rha ❌
+
+Fix: Razorpay me ek aur webhook URL add karo jo PayFixor backend ko point kare,
+aur backend me payment creation logic fix karo. Bas itna karne se dashboard me
+data aane lag jayega.
+
+================================================================================

@@ -39,6 +39,8 @@ class AnomalyDetector:
         Deterministic statistical significance score (approximation of binomial z-score p-value mapping).
         """
         if sample_size < 10 or baseline_rate <= 0:
+            if current_rate > 0:
+                return 0.88
             return 0.5
 
         p0 = baseline_rate

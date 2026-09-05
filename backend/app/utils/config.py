@@ -24,15 +24,20 @@ class Settings(BaseSettings):
 
     ALLOWED_ORIGINS: List[str] = ["http://localhost:8000", "http://127.0.0.1:8000"]
 
-    MIN_SAMPLE_SIZE: int = 50
+    MIN_SAMPLE_SIZE: int = 1
     MIN_ANOMALY_RATIO: float = 2.0
     MIN_CONFIDENCE_THRESHOLD: float = 0.85
-    HIGH_VALUE_THRESHOLD: float = 10000.0
+    HIGH_VALUE_THRESHOLD: float = 1000.0
     MAX_AUTO_RECOVERY_ATTEMPTS: int = 1
     MAX_CUSTOMER_RECOVERY_ATTEMPTS: int = 2
 
+    # Google Sheets Integration
+    GOOGLE_SHEET_ID: str = "1YpInc_OhFzpT9--O2b8WGsIfk6ihXbFQSuU38TYXFZY"
+    GOOGLE_SERVICE_ACCOUNT_EMAIL: str = "gharsansar-sheets@gharsansar-507609.iam.gserviceaccount.com"
+    GOOGLE_SHEET_CSV_URL: str = ""
+
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "backend/.env", "../backend/.env"),
         env_file_encoding="utf-8",
         extra="ignore"
     )

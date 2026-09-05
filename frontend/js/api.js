@@ -1,13 +1,71 @@
 
-const BACKEND_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? 'http://localhost:8000'
-  : 'https://payfixor-agent-backend.onrender.com';
+const getBackendUrl = () => {
+  if (window.localStorage && localStorage.getItem('PAYFIXOR_BACKEND_URL')) {
+    return localStorage.getItem('PAYFIXOR_BACKEND_URL');
+  }
+  if (window.location.port === '8000') {
+    return window.location.origin;
+  }
+  // Local environment or file:// protocol
+  if (!window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000';
+  }
+  return 'https://payfixor-agent-backend.onrender.com';
+};
+
+const BACKEND_URL = getBackendUrl();
 const BASE_URL = `${BACKEND_URL}/api`;
 
 
 window.PayFixorAPI = {
   BASE_URL,
   BACKEND_URL,
+
+  // Google Sheets Live Integration APIs
+  async getGoogleSheetStatus() {
+    const res = await fetch(`${BASE_URL}/integrations/sheets/status`);
+    if (!res.ok) throw new Error('Failed to fetch Google Sheet status');
+    return res.json();
+  },
+
+  async syncGoogleSheet(sheetId = null, sheetUrl = null) {
+    const res = await fetch(`${BASE_URL}/integrations/sheets/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheet_id: sheetId, sheet_url: sheetUrl })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to sync with Google Sheet');
+    }
+    return res.json();
+  },
+
+  async importSheetCsv(csvContent) {
+    const res = await fetch(`${BASE_URL}/integrations/sheets/import-csv`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ csv_content: csvContent })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to import CSV');
+    }
+    return res.json();
+  },
+
+  async sendSheetWebhookOrder(orderPayload) {
+    const res = await fetch(`${BASE_URL}/integrations/sheets/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(orderPayload)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to ingest sheet webhook order');
+    }
+    return res.json();
+  },
 
   async testWebhook(payload) {
     const res = await fetch(`${BASE_URL}/webhooks/razorpay`, {

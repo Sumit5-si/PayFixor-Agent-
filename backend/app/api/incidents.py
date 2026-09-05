@@ -16,8 +16,8 @@ router = APIRouter(prefix="/incidents", tags=["Incidents"])
 
 @router.post("/scan", response_model=List[IncidentResponse])
 async def trigger_anomaly_detection_scan(
-    lookback_hours: int = Query(default=4, ge=1, le=48),
-    min_sample_size: Optional[int] = Query(default=None, ge=5),
+    lookback_hours: int = Query(default=24, ge=1, le=168),
+    min_sample_size: Optional[int] = Query(default=None, ge=1),
     db: AsyncSession = Depends(get_db)
 ):
     """

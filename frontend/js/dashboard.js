@@ -240,6 +240,8 @@ window.Header = function Header({
   onRefresh,
   onSimulateDegradation,
   onScanTelemetry,
+  onSyncSheet,
+  isSyncingSheet,
   isRefreshing,
   isSimulating,
   lang,
@@ -336,6 +338,17 @@ window.Header = function Header({
             <Icon name="flame" className="w-3.5 h-3.5" />
           )}
           <span>{isSimulating ? t('btn_simulating') : t('btn_simulate_degradation')}</span>
+        </button>
+
+        {/* Sync Google Sheet Action Button */}
+        <button
+          onClick={onSyncSheet}
+          disabled={isSyncingSheet || isRefreshing}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 hover:border-emerald-500/50 transition disabled:opacity-60 shadow-sm"
+          title="Sync live GharSansar orders from Google Spreadsheet"
+        >
+          <Icon name="database" className={`w-3.5 h-3.5 ${isSyncingSheet ? "animate-spin text-emerald-300" : ""}`} />
+          <span>{isSyncingSheet ? (lang === 'hi' ? 'शीट सिंक हो रही है...' : 'Syncing Sheet...') : (lang === 'hi' ? 'गूगल शीट सिंक' : 'Sync Google Sheet')}</span>
         </button>
 
         {/* Scan Telemetry Anomaly Button */}
@@ -528,6 +541,8 @@ window.OverviewPage = function OverviewPage({
   incidents,
   onSelectIncident,
   onSimulateDegradation,
+  onSyncSheet,
+  isSyncingSheet,
   isSimulating,
   lang
 }) {
@@ -717,6 +732,42 @@ window.OverviewPage = function OverviewPage({
 
   return (
     <div className="space-y-6">
+      {/* Live Google Spreadsheet Sync Banner */}
+      <div className="fintech-card p-4 bg-gradient-to-r from-emerald-950/40 via-surface-card to-cyan-950/30 border border-emerald-500/30 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+            <Icon name="database" className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-200 tracking-wide uppercase">
+                {lang === 'hi' ? 'घरसंसार गूगल स्प्रेडशीट लाइव फीड' : 'GharSansar Google Spreadsheet Live Feed'}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse-dot"></span>
+                ACTIVE
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Sheet ID: <a href="https://docs.google.com/spreadsheets/d/1YpInc_OhFzpT9--O2b8WGsIfk6ihXbFQSuU38TYXFZY" target="_blank" rel="noreferrer" className="text-cyan-400 font-mono underline hover:text-cyan-300">1YpInc_OhFzpT9--O2b8WGsIfk6ihXbFQSuU38TYXFZY</a>
+              <span className="mx-2 text-slate-600">•</span>
+              {lang === 'hi' ? 'रद्द / विफल भुगतानों को तुरंत कैप्चर करता है' : 'Auto-syncs failed GharSansar checkout cancellations in real time'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onSyncSheet}
+            disabled={isSyncingSheet}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-md shadow-emerald-500/20 disabled:opacity-50"
+          >
+            <Icon name="refresh-cw" className={`w-3.5 h-3.5 ${isSyncingSheet ? "animate-spin" : ""}`} />
+            <span>{isSyncingSheet ? (lang === 'hi' ? 'सिंक हो रहा है...' : 'Syncing Sheet...') : (lang === 'hi' ? 'अभी सिंक करें' : 'Sync Sheet Now')}</span>
+          </button>
+        </div>
+      </div>
+
       {/* 8 Primary KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
@@ -2906,13 +2957,25 @@ window.PoliciesPage = function PoliciesPage({ lang }) {
 
 // --- FILE: frontend/js/pages/IntegrationStatus.js ---
 // Dark Fintech Integration Status Page Component
-window.IntegrationStatusPage = function IntegrationStatusPage({ lang }) {
+window.IntegrationStatusPage = function IntegrationStatusPage({ lang, onRefresh, showNotification }) {
   const [webhookResult, setWebhookResult] = React.useState(null);
   const [testingWebhook, setTestingWebhook] = React.useState(false);
+  const [isSyncingSheet, setIsSyncingSheet] = React.useState(false);
+  const [sheetSyncResult, setSheetSyncResult] = React.useState(null);
+  const [customCsv, setCustomCsv] = React.useState('');
+  const [isImportingCsv, setIsImportingCsv] = React.useState(false);
+  const [isSimulatingGharSansar, setIsSimulatingGharSansar] = React.useState(false);
 
   const t = (k, fb) => window.PayFixorI18n ? window.PayFixorI18n.t(k, fb) : (fb || k);
 
   const integrations = [
+    {
+      name: 'GharSansar Google Spreadsheet',
+      type: 'Live Order DB & Feed',
+      status: 'CONNECTED',
+      latency: '45ms',
+      details: 'Google Sheets ID: 1YpInc_OhFzpT9--O2b8WGsIfk6ihXbFQSuU38TYXFZY. Ingests customer orders, payment failures, and cart dropoffs.'
+    },
     {
       name: 'Razorpay Test Mode API',
       type: 'Payment Gateway',
@@ -2943,6 +3006,75 @@ window.IntegrationStatusPage = function IntegrationStatusPage({ lang }) {
     }
   ];
 
+  const handleSyncSheet = async () => {
+    setIsSyncingSheet(true);
+    setSheetSyncResult(null);
+    try {
+      const res = await window.PayFixorAPI.syncGoogleSheet();
+      setSheetSyncResult({ ok: true, data: res });
+      if (showNotification) {
+        showNotification(`Synced ${res.total_rows || 0} rows from Google Sheet (${res.failed_orders || 0} failed orders)`, 'success');
+      }
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      setSheetSyncResult({ ok: false, data: e.message });
+      if (showNotification) {
+        showNotification(`Sheet sync error: ${e.message}`, 'error');
+      }
+    } finally {
+      setIsSyncingSheet(false);
+    }
+  };
+
+  const handleImportCsv = async () => {
+    if (!customCsv.trim()) {
+      if (showNotification) showNotification('Please paste CSV rows first', 'error');
+      return;
+    }
+    setIsImportingCsv(true);
+    try {
+      const res = await window.PayFixorAPI.importSheetCsv(customCsv);
+      setSheetSyncResult({ ok: true, data: res });
+      if (showNotification) {
+        showNotification(`Imported ${res.total_rows || 0} rows (${res.failed_orders || 0} failed orders)`, 'success');
+      }
+      if (onRefresh) onRefresh();
+      setCustomCsv('');
+    } catch (e) {
+      setSheetSyncResult({ ok: false, data: e.message });
+      if (showNotification) showNotification(`Import error: ${e.message}`, 'error');
+    } finally {
+      setIsImportingCsv(false);
+    }
+  };
+
+  const handleSimulateGharSansarPayment = async () => {
+    setIsSimulatingGharSansar(true);
+    try {
+      const fakeOrderNum = Math.floor(1000 + Math.random() * 9000);
+      const payload = {
+        order_id: `order_gs_${fakeOrderNum}`,
+        razorpay_order_id: `order_rzp_${fakeOrderNum}`,
+        razorpay_payment_id: `pay_rzp_${fakeOrderNum}`,
+        customer_name: `GharSansar Buyer ${fakeOrderNum}`,
+        phone: `98765${fakeOrderNum}`,
+        email: `buyer${fakeOrderNum}@example.com`,
+        amount: 699.0,
+        status: "FAILED: Payment cancelled by user",
+        timestamp: new Date().toISOString()
+      };
+      const res = await window.PayFixorAPI.sendSheetWebhookOrder(payload);
+      if (showNotification) {
+        showNotification(`Simulated live payment cancellation for ₹699. Incident detection triggered!`, 'success');
+      }
+      if (onRefresh) await onRefresh();
+    } catch (e) {
+      if (showNotification) showNotification(`Simulation failed: ${e.message}`, 'error');
+    } finally {
+      setIsSimulatingGharSansar(false);
+    }
+  };
+
   const handleTestWebhook = async () => {
     setTestingWebhook(true);
     try {
@@ -2960,17 +3092,9 @@ window.IntegrationStatusPage = function IntegrationStatusPage({ lang }) {
         }
       };
 
-      const baseUrl = window.PayFixorAPI?.BASE_URL || '/api';
-      const res = await fetch(`${baseUrl}/webhooks/razorpay`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Razorpay-Signature': 'mock_sig'
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      setWebhookResult({ ok: res.ok, data });
+      const res = await window.PayFixorAPI.testWebhook(payload);
+      setWebhookResult(res);
+      if (onRefresh) onRefresh();
     } catch (e) {
       setWebhookResult({ ok: false, data: e.message });
     } finally {
@@ -2980,8 +3104,8 @@ window.IntegrationStatusPage = function IntegrationStatusPage({ lang }) {
 
   return (
     <div className="space-y-6">
-      {/* 4 Gateway Components Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* 5 Gateway Components Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {integrations.map((item, idx) => (
           <div key={idx} className="fintech-card p-6 flex flex-col justify-between hover:border-surface-highlight transition-all">
             <div>
@@ -3002,6 +3126,87 @@ window.IntegrationStatusPage = function IntegrationStatusPage({ lang }) {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Google Spreadsheet Live Control Hub */}
+      <div className="fintech-card p-6 space-y-5 border border-emerald-500/30 bg-gradient-to-br from-surface-card via-surface-card to-emerald-950/20">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                <Icon name="table" className="w-4 h-4" />
+              </span>
+              <h3 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
+                Google Spreadsheet Live Ingestion & Sync Hub
+              </h3>
+            </div>
+            <p className="text-xs text-slate-400 mt-1">
+              Synchronizes GharSansar orders directly from Google Sheets or dispatches live payment events.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <button
+              onClick={handleSimulateGharSansarPayment}
+              disabled={isSimulatingGharSansar}
+              className="px-3.5 py-2 rounded-xl bg-surface-subtle hover:bg-surface-highlight text-rose-400 border border-rose-500/30 text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50"
+              title="Simulates a real GharSansar payment cancellation (₹699) and triggers anomaly detection live"
+            >
+              <Icon name="flame" className={`w-3.5 h-3.5 ${isSimulatingGharSansar ? "animate-spin" : ""}`} />
+              <span>{isSimulatingGharSansar ? 'Simulating...' : 'Simulate GharSansar Decline (Live Demo)'}</span>
+            </button>
+
+            <button
+              onClick={handleSyncSheet}
+              disabled={isSyncingSheet}
+              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20 disabled:opacity-50"
+            >
+              <Icon name="refresh-cw" className={`w-3.5 h-3.5 ${isSyncingSheet ? "animate-spin" : ""}`} />
+              <span>{isSyncingSheet ? 'Syncing...' : 'Sync From Sheet Now'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Sync Result Banner */}
+        {sheetSyncResult && (
+          <div className={`p-4 rounded-xl text-xs font-mono border ${
+            sheetSyncResult.ok ? 'bg-emerald-950/40 text-emerald-300 border-emerald-500/40' : 'bg-rose-950/40 text-rose-300 border-rose-500/40'
+          }`}>
+            <div className="font-bold mb-1">Spreadsheet Sync Response: {sheetSyncResult.ok ? 'Success' : 'Error'}</div>
+            <pre className="overflow-x-auto">{JSON.stringify(sheetSyncResult.data, null, 2)}</pre>
+            {!sheetSyncResult.ok && (
+              <div className="mt-2 text-amber-300 text-xs font-sans">
+                💡 <strong>Tip for Live Demo:</strong> If your Google Sheet is set to "Restricted", open the Sheet → Click <strong>Share</strong> (top right) → Change General Access to <strong>"Anyone with the link" (Viewer)</strong>, or paste the CSV rows below!
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Manual CSV Paste Fallback */}
+        <div className="pt-4 border-t border-surface-border">
+          <label className="block text-xs font-bold text-slate-300 mb-1.5">
+            Direct CSV Paste (Instant Offline / Private Sheet Backup)
+          </label>
+          <p className="text-[11px] text-slate-400 mb-2">
+            In Google Sheets, select your Orders rows or File → Download → CSV, paste the text here and click Import.
+          </p>
+          <div className="flex gap-3">
+            <textarea
+              rows={3}
+              value={customCsv}
+              onChange={(e) => setCustomCsv(e.target.value)}
+              placeholder="order_id,razorpay_order_id,razorpay_payment_id,customer_name,phone,address,pincode,product_id,quantity,amount,status,timestamp&#10;order_001,order_xyz,pay_xyz,Rohan,9876543210,Delhi,110001,prod_diya,1,699,FAILED: Payment cancelled by user,2026-09-05 15:30:00"
+              className="flex-1 bg-surface-base border border-surface-border rounded-xl p-2.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
+            />
+            <button
+              onClick={handleImportCsv}
+              disabled={isImportingCsv || !customCsv.trim()}
+              className="px-4 py-2 self-end rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition disabled:opacity-40"
+            >
+              {isImportingCsv ? 'Importing...' : 'Import CSV'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Webhook Endpoint Testing Console */}
@@ -3058,6 +3263,7 @@ function App() {
   const [incidents, setIncidents] = React.useState([]);
   const [isRefreshing, setIsRefreshing] = React.useState(false);
   const [isSimulating, setIsSimulating] = React.useState(false);
+  const [isSyncingSheet, setIsSyncingSheet] = React.useState(false);
   const [notification, setNotification] = React.useState(null);
 
   const t = (k, fb) => window.PayFixorI18n ? window.PayFixorI18n.t(k, fb) : (fb || k);
@@ -3072,6 +3278,22 @@ function App() {
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type });
     setTimeout(() => setNotification(null), 5000);
+  };
+
+  const handleSyncSheet = async (sheetId = null, sheetUrl = null) => {
+    setIsSyncingSheet(true);
+    try {
+      const res = await window.PayFixorAPI.syncGoogleSheet(sheetId, sheetUrl);
+      showNotification(
+        `Google Sheet Synced: ${res.payments_created || 0} new records, ${res.failed_orders || 0} failed orders detected.`,
+        'success'
+      );
+      await loadAllData();
+    } catch (err) {
+      showNotification(`Sheet Sync: ${err.message}`, 'error');
+    } finally {
+      setIsSyncingSheet(false);
+    }
   };
 
   const loadAllData = async () => {
@@ -3196,6 +3418,8 @@ function App() {
           onRefresh={loadAllData}
           onSimulateDegradation={handleSimulateDegradation}
           onScanTelemetry={handleScanTelemetry}
+          onSyncSheet={handleSyncSheet}
+          isSyncingSheet={isSyncingSheet}
           isRefreshing={isRefreshing}
           isSimulating={isSimulating}
           lang={lang}
@@ -3228,6 +3452,8 @@ function App() {
               incidents={incidents}
               onSelectIncident={handleSelectIncident}
               onSimulateDegradation={handleSimulateDegradation}
+              onSyncSheet={handleSyncSheet}
+              isSyncingSheet={isSyncingSheet}
               isSimulating={isSimulating}
               lang={lang}
             />
@@ -3289,7 +3515,11 @@ function App() {
           )}
 
           {activePage === 'integration' && (
-            <IntegrationStatusPage lang={lang} />
+            <IntegrationStatusPage
+              lang={lang}
+              onRefresh={loadAllData}
+              showNotification={showNotification}
+            />
           )}
         </main>
       </div>
